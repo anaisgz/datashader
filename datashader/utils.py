@@ -153,7 +153,11 @@ def get_indices(start, end, coords, res):
     vmin, vmax = coords.min(), coords.max()
     span = vmax-vmin
     start, end = start+half-vmin, end-half-vmin
-    return int((start/span)*size), int((end/span)*size)
+    sidx, eidx = int((start/span)*size), int((end/span)*size)
+    if eidx < sidx:
+        # Handle sub-pixel condition
+        return sidx, sidx+1
+    return sidx, eidx
 
 
 def orient_array(raster, res=None, layer=None):

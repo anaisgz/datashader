@@ -395,8 +395,8 @@ class Canvas(object):
         if np.isclose(width_ratio, 0) or np.isclose(height_ratio, 0):
             raise ValueError('Canvas x_range or y_range values do not match closely enough with the data source to be able to accurately rasterize. Please provide ranges that are more accurate.')
 
-        w = int(np.ceil(self.plot_width * width_ratio))
-        h = int(np.ceil(self.plot_height * height_ratio))
+        w = max([int(np.ceil(self.plot_width * width_ratio)), 1])
+        h = max([int(np.ceil(self.plot_height * height_ratio)), 1])
         cmin, cmax = get_indices(xmin, xmax, xvals, res[0])
         rmin, rmax = get_indices(ymin, ymax, yvals, res[1])
 
@@ -430,7 +430,7 @@ class Canvas(object):
             rpad = self.x_range[1] - xmax
             lpct = lpad / (lpad + rpad) if lpad + rpad > 0 else 0
             left = int(np.ceil(num_width * lpct))
-            right = num_width - left
+            right = max([num_width - left, 0])
             lshape, rshape = (self.plot_height, left), (self.plot_height, right)
             if layers > 1:
                 lshape, rshape = lshape + (layers,), rshape + (layers,)
@@ -441,15 +441,24 @@ class Canvas(object):
             bpad = self.y_range[1] - ymax
             tpct = tpad / (tpad + bpad) if tpad + bpad > 0 else 0
             top = int(np.ceil(num_height * tpct))
-            bottom = num_height - top
+            bottom = max([num_height - top, 0])
             tshape, bshape = (top, w), (bottom, w)
             if layers > 1:
                 tshape, bshape = tshape + (layers,), bshape + (layers,)
             top_pad = np.full(tshape, fill_value, source_window.dtype)
             bottom_pad = np.full(bshape, fill_value, source_window.dtype)
 
-            data = np.concatenate((top_pad, data, bottom_pad), axis=0)
-            data = np.concatenate((left_pad, data, right_pad), axis=1)
+            vert_stack = []
+            if np.product(top_pad.shape) > 0: vert_stack.append(top_pad)
+            vert_stack.append(data)
+            if np.product(bottom_pad.shape) > 0: vert_stack.append(bottom_pad)
+            data = np.concatenate(vert_stack, axis=0)
+
+            hor_stack = []
+            if np.product(left_pad.shape) > 0: hor_stack.append(left_pad)
+            hor_stack.append(data)
+            if np.product(right_pad.shape) > 0: hor_stack.append(right_pad)
+            data = np.concatenate(hor_stack, axis=1)
 
         # Reorient array to original orientation
         if res[1] > 0: data = data[::-1]
